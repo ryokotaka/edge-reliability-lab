@@ -19,8 +19,26 @@ def test_compute_reliability_metrics_counts_missing_and_ok_rows() -> None:
     assert metrics.expected_count == 5
     assert metrics.observed_count == 5
     assert metrics.missing_count == 1
+    assert metrics.absent_count == 0
     assert metrics.ok_count == 2
     assert metrics.missing_rate == 0.2
     assert metrics.p95_latency_ms == 200.0
     assert metrics.uptime_ratio == 0.4
+    assert metrics.recovery_loss == 0
+
+
+def test_compute_reliability_metrics_counts_absent_sequences_as_recovery_loss() -> None:
+    rows = [
+        {"seq": 0, "latency_ms": 10.0, "status": "ok"},
+        {"seq": 2, "latency_ms": 50.0, "status": "ok"},
+        {"seq": 4, "latency_ms": 200.0, "status": "restart_gap"},
+    ]
+
+    metrics = compute_reliability_metrics(rows, expected_count=5)
+
+    assert metrics.observed_count == 3
+    assert metrics.absent_count == 2
+    assert metrics.missing_count == 2
+    assert metrics.recovery_loss == 2
+    assert metrics.missing_rate == 0.4
 

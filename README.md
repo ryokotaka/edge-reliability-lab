@@ -14,7 +14,7 @@ under physical and resource-constrained conditions.
 
 ## What This System Does
 
-This project implements a minimal edge AI reliability and optimization pipeline:
+This project is building a minimal edge AI reliability and optimization pipeline:
 
 1. Generate or collect sensor-like data
 2. Store readings locally in SQLite
@@ -23,6 +23,11 @@ This project implements a minimal edge AI reliability and optimization pipeline:
 5. Apply software-level optimizations
 6. Compare baseline vs optimized results
 7. Explain results with reproducible logs and a dashboard
+
+The current implementation covers synthetic data generation, SQLite storage,
+reliability metrics, and a local buffer / checkpoint recovery experiment.
+Lightweight inference, quantization, adaptive sampling, and the dashboard are not
+implemented yet.
 
 ## Architecture
 
@@ -39,11 +44,11 @@ synthetic sensor data
 
 ## Current Version
 
-`v0` uses synthetic environmental sensor data instead of real hardware.
-The goal is to make the reliability pipeline measurable before adding Raspberry Pi
-hardware, lightweight inference, and optimization experiments.
+`v1` uses synthetic environmental sensor data instead of real hardware.
+The goal is to make the reliability and recovery pipeline measurable before adding
+Raspberry Pi hardware, lightweight inference, and later optimization experiments.
 
-The current v0 flow is:
+The base measurement flow is:
 
 ```text
 synthetic sensor data
@@ -53,6 +58,17 @@ synthetic sensor data
   -> README explanation
 ```
 
+The first software optimization experiment is:
+
+```text
+synthetic sensor data
+  -> simulated SQLite write failure
+  -> baseline direct write loses rows
+  -> optimized local JSONL buffer checkpoints rows
+  -> recovered rows are flushed to SQLite
+  -> baseline vs optimized recovery metrics
+```
+
 ## Metrics
 
 | Metric | Meaning |
@@ -60,12 +76,13 @@ synthetic sensor data
 | `missing_rate` | Fraction of expected samples that are missing |
 | `p95_latency_ms` | 95th percentile of non-missing sample latency |
 | `uptime_ratio` | Fraction of expected samples that are normal `ok` readings |
+| `recovery_loss` | Expected sequence slots absent after a restart or write failure |
 | `inference_latency_ms` | Time spent in lightweight anomaly detection |
 | `memory_mb` | Approximate memory usage during inference |
-| `recovery_loss` | Samples lost after restart or interruption |
 
 The v0 implementation calculates `missing_rate`, `p95_latency_ms`, and
-`uptime_ratio`. Inference and optimization metrics are planned for later versions.
+`uptime_ratio`. The v1 recovery experiment also calculates `recovery_loss`.
+Inference and resource metrics are planned for later versions.
 
 ## Optimization Plan
 
@@ -118,6 +135,7 @@ python -m pip install --upgrade pip pytest
 python3 scripts/generate_synthetic_data.py
 python3 -m edge_agent.storage data/sample.csv data/readings.sqlite
 python3 -m edge_agent.metrics data/readings.sqlite
+python3 scripts/run_recovery_experiment.py
 python3 -m pytest
 ```
 
@@ -128,19 +146,29 @@ These values come from the default deterministic synthetic sample.
 | Metric | Result | Note |
 | --- | ---: | --- |
 | expected samples | 1800 | 30 minutes at 1 Hz |
+| absent samples | 0 | no lost sequence slots |
 | missing rate | 0.0344 | synthetic dropout |
 | p95 latency | 132.089 ms | non-missing rows |
 | uptime ratio | 0.9539 | ok rows / expected rows |
+| recovery loss | 0 | base sample has no simulated write failure |
 
 ## Baseline vs Optimized
 
-| Metric | Baseline | Optimized | Change |
+The current recovery experiment simulates a SQLite write failure for sequence
+`600..719`. Direct writes lose those rows; the optimized path stores them in a
+local JSONL buffer with a checkpoint and flushes them after recovery.
+
+| Metric | Baseline direct write | Buffered recovery | Change |
 | --- | ---: | ---: | ---: |
-| missing rate | TBD | TBD | TBD |
-| p95 latency | TBD ms | TBD ms | TBD |
-| inference latency | TBD ms | TBD ms | TBD |
-| memory usage | TBD MB | TBD MB | TBD |
-| recovery loss | TBD samples | TBD samples | TBD |
+| observed samples | 1680 | 1800 | +120 |
+| missing rate | 0.0989 | 0.0344 | -0.0645 |
+| p95 latency | 125.789 ms | 132.089 ms | +6.300 ms |
+| uptime ratio | 0.8900 | 0.9539 | +0.0639 |
+| recovery loss | 120 samples | 0 samples | -120 |
+| recovered rows | 0 | 120 | +120 |
+
+This result is intentionally narrow: local buffering reduces recovery loss, but it
+does not make the underlying synthetic dropout disappear.
 
 ## Planned Hardware
 

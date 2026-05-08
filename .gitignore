@@ -10,4 +10,4 @@ venv/
 *.sqlite3
 data/*.db
 data/*.sqlite
-
+data/recovery_experiment/

@@ -5,6 +5,7 @@ import csv
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Iterable, Mapping
 
 
 SCHEMA_SQL = """
@@ -47,36 +48,55 @@ def init_db(conn: sqlite3.Connection, *, replace: bool = False) -> None:
     conn.commit()
 
 
-def _optional_float(value: str) -> float | None:
+def _optional_float(value: object) -> float | None:
     return None if value == "" else float(value)
 
 
-def _row_from_csv(raw: dict[str, str], created_at_utc: str) -> tuple[object, ...]:
+def _row_to_record(raw: Mapping[str, object], created_at_utc: str) -> tuple[object, ...]:
     return (
-        raw["ts_utc"],
+        str(raw["ts_utc"]),
         int(raw["seq"]),
-        raw["source"],
+        str(raw["source"]),
         _optional_float(raw["temperature_c"]),
         _optional_float(raw["humidity_pct"]),
         _optional_float(raw["pressure_hpa"]),
         _optional_float(raw["latency_ms"]),
-        raw["status"],
-        raw["fault_type"],
+        str(raw["status"]),
+        str(raw["fault_type"]),
         created_at_utc,
     )
 
 
-def import_csv_to_sqlite(csv_path: Path, db_path: Path, *, replace: bool = True) -> int:
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    created_at_utc = datetime.now(timezone.utc).isoformat(timespec="seconds")
+def insert_readings(
+    conn: sqlite3.Connection,
+    readings: Iterable[Mapping[str, object]],
+    *,
+    created_at_utc: str | None = None,
+) -> int:
+    created_at = created_at_utc or datetime.now(timezone.utc).isoformat(timespec="seconds")
+    rows = [_row_to_record(raw, created_at) for raw in readings]
+    conn.executemany(INSERT_SQL, rows)
+    conn.commit()
+    return len(rows)
 
+
+def write_rows_to_sqlite(
+    readings: Iterable[Mapping[str, object]],
+    db_path: Path,
+    *,
+    replace: bool = True,
+) -> int:
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        init_db(conn, replace=replace)
+        return insert_readings(conn, readings)
+
+
+def import_csv_to_sqlite(csv_path: Path, db_path: Path, *, replace: bool = True) -> int:
     with csv_path.open(newline="") as csv_file, sqlite3.connect(db_path) as conn:
         init_db(conn, replace=replace)
         reader = csv.DictReader(csv_file)
-        rows = [_row_from_csv(raw, created_at_utc) for raw in reader]
-        conn.executemany(INSERT_SQL, rows)
-        conn.commit()
-        return len(rows)
+        return insert_readings(conn, reader)
 
 
 def _build_parser() -> argparse.ArgumentParser:

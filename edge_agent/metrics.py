@@ -16,10 +16,12 @@ class ReliabilityMetrics:
     expected_count: int
     observed_count: int
     missing_count: int
+    absent_count: int
     ok_count: int
     missing_rate: float
     p95_latency_ms: float | None
     uptime_ratio: float
+    recovery_loss: int
 
 
 def nearest_rank_percentile(values: Sequence[float], percentile: float) -> float | None:
@@ -41,7 +43,10 @@ def compute_reliability_metrics(
         raise ValueError("expected_count must be positive")
 
     materialized = list(rows)
-    missing_count = sum(1 for row in materialized if row.get("status") == "missing")
+    observed_sequences = {int(row["seq"]) for row in materialized if row.get("seq") is not None}
+    absent_count = max(expected_count - len(observed_sequences), 0)
+    explicit_missing_count = sum(1 for row in materialized if row.get("status") == "missing")
+    missing_count = explicit_missing_count + absent_count
     ok_count = sum(1 for row in materialized if row.get("status") == "ok")
 
     latencies = [
@@ -54,10 +59,12 @@ def compute_reliability_metrics(
         expected_count=expected_count,
         observed_count=len(materialized),
         missing_count=missing_count,
+        absent_count=absent_count,
         ok_count=ok_count,
         missing_rate=missing_count / expected_count,
         p95_latency_ms=nearest_rank_percentile(latencies, 95),
         uptime_ratio=ok_count / expected_count,
+        recovery_loss=absent_count,
     )
 
 
@@ -103,4 +110,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
