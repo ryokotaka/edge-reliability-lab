@@ -23,3 +23,13 @@ synthetic sensor data
   -> SQLite flush after recovery
   -> recovery_loss comparison
 ```
+
+v2 adds lightweight anomaly scoring:
+
+```text
+synthetic sensor data
+  -> calibration from normal rows
+  -> float-like anomaly scorer
+  -> quantized-like anomaly scorer
+  -> precision / recall / F1 / state-size comparison
+```

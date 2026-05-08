@@ -25,9 +25,9 @@ This project is building a minimal edge AI reliability and optimization pipeline
 7. Explain results with reproducible logs and a dashboard
 
 The current implementation covers synthetic data generation, SQLite storage,
-reliability metrics, and a local buffer / checkpoint recovery experiment.
-Lightweight inference, quantization, adaptive sampling, and the dashboard are not
-implemented yet.
+reliability metrics, a local buffer / checkpoint recovery experiment, and a
+lightweight anomaly scoring experiment that compares float-like and quantized-like
+inference state. Adaptive sampling and the dashboard are not implemented yet.
 
 ## Architecture
 
@@ -44,9 +44,9 @@ synthetic sensor data
 
 ## Current Version
 
-`v1` uses synthetic environmental sensor data instead of real hardware.
-The goal is to make the reliability and recovery pipeline measurable before adding
-Raspberry Pi hardware, lightweight inference, and later optimization experiments.
+`v2` uses synthetic environmental sensor data instead of real hardware.
+The goal is to make the reliability, recovery, and lightweight inference pipeline
+measurable before adding Raspberry Pi hardware and real sensor constraints.
 
 The base measurement flow is:
 
@@ -69,6 +69,16 @@ synthetic sensor data
   -> baseline vs optimized recovery metrics
 ```
 
+The second software optimization experiment is:
+
+```text
+SQLite / CSV readings
+  -> calibrate normal environmental ranges
+  -> float-like anomaly scoring
+  -> quantized-like anomaly scoring
+  -> compare detection quality, inference latency, and state size
+```
+
 ## Metrics
 
 | Metric | Meaning |
@@ -82,7 +92,9 @@ synthetic sensor data
 
 The v0 implementation calculates `missing_rate`, `p95_latency_ms`, and
 `uptime_ratio`. The v1 recovery experiment also calculates `recovery_loss`.
-Inference and resource metrics are planned for later versions.
+The v2 inference experiment calculates precision, recall, F1, p95 inference
+latency, and model state size. This is lightweight anomaly scoring, not a neural
+network model yet.
 
 ## Optimization Plan
 
@@ -136,6 +148,7 @@ python3 scripts/generate_synthetic_data.py
 python3 -m edge_agent.storage data/sample.csv data/readings.sqlite
 python3 -m edge_agent.metrics data/readings.sqlite
 python3 scripts/run_recovery_experiment.py
+python3 scripts/run_inference_experiment.py
 python3 -m pytest
 ```
 
@@ -170,6 +183,30 @@ local JSONL buffer with a checkpoint and flushes them after recovery.
 This result is intentionally narrow: local buffering reduces recovery loss, but it
 does not make the underlying synthetic dropout disappear.
 
+## Lightweight Inference vs Quantized Scoring
+
+The current inference experiment treats `status = noisy` as the ground-truth anomaly
+label. It calibrates normal environmental ranges from synthetic `ok` readings, then
+compares float-like anomaly scoring with quantized-like scoring.
+
+| Metric | Float-like scoring | Quantized-like scoring | Change |
+| --- | ---: | ---: | ---: |
+| evaluated samples | 1738 | 1738 | 0 |
+| true anomalies | 13 | 13 | 0 |
+| true positives | 12 | 12 | 0 |
+| false positives | 0 | 0 | 0 |
+| false negatives | 1 | 1 | 0 |
+| precision | 1.0000 | 1.0000 | 0 |
+| recall | 0.9231 | 0.9231 | 0 |
+| F1 | 0.9600 | 0.9600 | 0 |
+| p95 inference latency | ~0.002 ms | ~0.001 ms | machine-dependent |
+| model state size | 48 bytes | 6 bytes | -42 bytes |
+
+This result is also intentionally narrow: quantized-like scoring reduces stored model
+state in this small benchmark while preserving detection quality. Python-level timing
+at this size is too small and variable to treat as hardware evidence; Raspberry Pi
+measurements are needed before making stronger latency claims.
+
 ## Planned Hardware
 
 The first hardware target is:
@@ -186,6 +223,7 @@ thermal behavior, and optional power usage.
 ## Limitations
 
 - v0 uses synthetic data only
+- lightweight inference is statistical anomaly scoring, not a neural network
 - no cloud backend
 - no large ML model
 - no camera input
@@ -200,9 +238,9 @@ conditions.
 - connect BME280 sensor
 - add MPU-6050 motion sensor
 - add Streamlit dashboard
-- add anomaly detection with rolling z-score
+- add rolling-window anomaly detection
 - compare real sensor data with synthetic fault injection
 - add local buffering and checkpoint recovery
-- compare float32 vs quantized lightweight inference
+- compare float32 vs quantized lightweight inference on Raspberry Pi
 - compare fixed sampling vs adaptive sampling
 - add a short 90-second demo
