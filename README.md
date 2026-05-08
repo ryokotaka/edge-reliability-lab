@@ -28,8 +28,8 @@ The current implementation covers synthetic data generation, SQLite storage,
 reliability metrics, a local buffer / checkpoint recovery experiment, and a
 lightweight anomaly scoring experiment that compares float-like and quantized-like
 inference state. It also includes an adaptive sampling experiment that compares
-fixed 1 Hz inference against lower-frequency stable-period sampling. The dashboard is
-not implemented yet.
+fixed 1 Hz inference against lower-frequency stable-period sampling, plus a SQLite
+batch-write experiment. The dashboard is not implemented yet.
 
 ## Architecture
 
@@ -46,10 +46,10 @@ synthetic sensor data
 
 ## Current Version
 
-`v3` uses synthetic environmental sensor data instead of real hardware.
-The goal is to make the reliability, recovery, lightweight inference, and adaptive
-sampling pipeline measurable before adding Raspberry Pi hardware and real sensor
-constraints.
+`v4` uses synthetic environmental sensor data instead of real hardware.
+The goal is to make the reliability, recovery, lightweight inference, adaptive
+sampling, and storage-write pipeline measurable before adding Raspberry Pi hardware
+and real sensor constraints.
 
 The base measurement flow is:
 
@@ -91,6 +91,15 @@ quantized-like anomaly scorer
   -> compare sampled rows, estimated inference reduction, recall, and F1
 ```
 
+The fourth software optimization experiment is:
+
+```text
+CSV readings
+  -> direct per-row SQLite writes
+  -> batched SQLite writes
+  -> compare insert calls, commit count, and elapsed write time
+```
+
 ## Metrics
 
 | Metric | Meaning |
@@ -107,7 +116,8 @@ The v0 implementation calculates `missing_rate`, `p95_latency_ms`, and
 The v2 inference experiment calculates precision, recall, F1, p95 inference
 latency, and model state size. This is lightweight anomaly scoring, not a neural
 network model yet. The v3 adaptive sampling experiment estimates inference-work
-reduction and measures the detection-quality trade-off.
+reduction and measures the detection-quality trade-off. The v4 batch-write experiment
+measures SQLite write-call and commit-count reduction.
 
 ## Optimization Plan
 
@@ -163,6 +173,7 @@ python3 -m edge_agent.metrics data/readings.sqlite
 python3 scripts/run_recovery_experiment.py
 python3 scripts/run_inference_experiment.py
 python3 scripts/run_sampling_experiment.py
+python3 scripts/run_batch_write_experiment.py
 python3 -m pytest
 ```
 
@@ -246,6 +257,24 @@ inference work by about 15%, but it misses more isolated noisy samples in the cu
 synthetic stream. The next step is to tune the policy and measure CPU, latency, and
 power on target hardware.
 
+## Direct Writes vs Batched SQLite Writes
+
+The current batch-write experiment compares one-row SQLite writes against batches of
+100 rows. The row count is the same in both cases.
+
+| Metric | Direct per-row writes | Batched writes | Change |
+| --- | ---: | ---: | ---: |
+| rows written | 1800 | 1800 | 0 |
+| batch size | 1 | 100 | +99 |
+| insert calls | 1800 | 18 | -1782 |
+| commit count | 1800 | 18 | -1782 |
+| rows per commit | 1 | 100 | +99 |
+| elapsed write time | ~5.5 s | ~67 ms | machine-dependent |
+
+This result shows why batching matters for local storage: fewer commits can greatly
+reduce write overhead. The timing is machine-dependent and should be re-measured on
+Raspberry Pi before making hardware claims.
+
 ## Planned Hardware
 
 The first hardware target is:
@@ -264,6 +293,7 @@ thermal behavior, and optional power usage.
 - v0 uses synthetic data only
 - lightweight inference is statistical anomaly scoring, not a neural network
 - adaptive sampling currently estimates inference-work reduction, not real power draw
+- batch-write timing is machine-dependent until measured on target hardware
 - no cloud backend
 - no large ML model
 - no camera input
@@ -283,4 +313,5 @@ conditions.
 - add local buffering and checkpoint recovery
 - compare float32 vs quantized lightweight inference on Raspberry Pi
 - tune fixed sampling vs adaptive sampling on Raspberry Pi
+- re-measure direct vs batched SQLite writes on Raspberry Pi storage
 - add a short 90-second demo

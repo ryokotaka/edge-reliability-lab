@@ -42,3 +42,12 @@ quantized-like anomaly scorer
   -> adaptive stable-period skipping
   -> sampled_count / recall / F1 comparison
 ```
+
+v4 adds batch-write comparison:
+
+```text
+CSV readings
+  -> direct per-row SQLite writes
+  -> batched SQLite writes
+  -> insert_calls / commit_count / elapsed_ms comparison
+```

@@ -22,6 +22,7 @@ SQLite after recovery.
 | inference latency on Raspberry Pi | TBD ms | TBD ms | quantization effect on target hardware |
 | memory usage on Raspberry Pi | TBD MB | TBD MB | constrained-device fit |
 | adaptive sampling CPU / power | TBD | TBD | target-hardware sampling trade-off |
+| batch SQLite writes on Raspberry Pi | TBD ms | TBD ms | target-storage write overhead |
 
 ## v2 Float-like vs Quantized-like Anomaly Scoring
 
@@ -78,4 +79,27 @@ Adaptive sampling reduced estimated inference work by about 15%, but recall and 
 dropped because isolated noisy rows can be skipped. This is useful as a trade-off
 experiment, not as a final policy. The next version should tune the policy on target
 hardware and add CPU / power measurements.
+```
+
+## v4 Direct SQLite Writes vs Batched SQLite Writes
+
+The fourth optimization experiment compares one-row SQLite writes against batched
+writes of 100 rows. Both paths write the same 1800 synthetic readings.
+
+| Metric | Direct per-row writes | Batched writes | Interpretation |
+| --- | ---: | ---: | --- |
+| rows written | 1800 | 1800 | same data |
+| batch size | 1 | 100 | optimized path groups rows |
+| insert calls | 1800 | 18 | fewer write calls |
+| commit count | 1800 | 18 | fewer durable commits |
+| rows per insert call | 1 | 100 | less per-row overhead |
+| rows per commit | 1 | 100 | less commit overhead |
+| elapsed write time | ~5.5 s | ~67 ms | local-machine example only |
+
+Interpretation:
+
+```text
+Batch writes dramatically reduce SQLite insert and commit overhead in the synthetic
+benchmark. The stable claim is the write-call and commit-count reduction; elapsed time
+must be re-measured on Raspberry Pi storage before making hardware claims.
 ```

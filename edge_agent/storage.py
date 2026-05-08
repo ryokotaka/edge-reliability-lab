@@ -52,7 +52,7 @@ def _optional_float(value: object) -> float | None:
     return None if value == "" else float(value)
 
 
-def _row_to_record(raw: Mapping[str, object], created_at_utc: str) -> tuple[object, ...]:
+def row_to_record(raw: Mapping[str, object], created_at_utc: str) -> tuple[object, ...]:
     return (
         str(raw["ts_utc"]),
         int(raw["seq"]),
@@ -74,7 +74,7 @@ def insert_readings(
     created_at_utc: str | None = None,
 ) -> int:
     created_at = created_at_utc or datetime.now(timezone.utc).isoformat(timespec="seconds")
-    rows = [_row_to_record(raw, created_at) for raw in readings]
+    rows = [row_to_record(raw, created_at) for raw in readings]
     conn.executemany(INSERT_SQL, rows)
     conn.commit()
     return len(rows)
