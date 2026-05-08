@@ -47,10 +47,10 @@ synthetic sensor data
 
 ## Current Version
 
-`v5` uses synthetic environmental sensor data instead of real hardware.
+`v6` uses synthetic environmental sensor data instead of real hardware.
 The goal is to make the reliability, recovery, lightweight inference, adaptive
-sampling, storage-write, and false-positive filtering pipeline measurable before
-adding Raspberry Pi hardware and real sensor constraints.
+sampling, storage-write, false-positive filtering, and dashboard summary pipeline
+measurable before adding Raspberry Pi hardware and real sensor constraints.
 
 The base measurement flow is:
 
@@ -138,7 +138,8 @@ latency, and model state size. This is lightweight anomaly scoring, not a neural
 network model yet. The v3 adaptive sampling experiment estimates inference-work
 reduction and measures the detection-quality trade-off. The v4 batch-write experiment
 measures SQLite write-call and commit-count reduction. The v5 stability-filter
-experiment measures false-positive reduction against detection delay.
+experiment measures false-positive reduction against detection delay. The v6 static
+dashboard summarizes local experiment JSON outputs in a browser-viewable HTML report.
 
 ## Optimization Plan
 
