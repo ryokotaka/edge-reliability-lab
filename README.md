@@ -111,10 +111,14 @@ The CSV schema is:
 ## Quick Start
 
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip pytest
+
 python3 scripts/generate_synthetic_data.py
 python3 -m edge_agent.storage data/sample.csv data/readings.sqlite
 python3 -m edge_agent.metrics data/readings.sqlite
-pytest
+python3 -m pytest
 ```
 
 ## Example Results
