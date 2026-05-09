@@ -20,7 +20,7 @@ pipeline onto Raspberry Pi hardware and real sensors.
 | Storage | Local SQLite readings table |
 | Inference | Lightweight statistical scoring and a standard-library tiny learned model |
 | Reliability metrics | Missing rate, p95 latency, uptime ratio, recovery loss |
-| Optimization experiments | Local buffer, batch writes, quantized-like scoring, tiny model quantization, adaptive sampling, hysteresis filter |
+| Optimization experiments | Local buffer, batch writes, quantized-like scoring, tiny model quantization/stress test, adaptive sampling, hysteresis filter |
 | Dashboard | Dependency-free static HTML generated from local experiment summaries |
 | Cost / cloud | No paid API, no cloud backend, no external service dependency |
 
@@ -33,6 +33,7 @@ for the engineering questions that appear before a product exists:
 - How much data can a checkpoint buffer recover?
 - Can a smaller inference state preserve detection quality?
 - Can a trainable tiny model match the statistical scorer on held-out synthetic data?
+- Does that tiny-model result survive multiple synthetic seeds?
 - How much inference work can be skipped before recall drops?
 - How much overhead comes from committing every SQLite row separately?
 - Can a tiny stability filter remove transient false alerts, and what delay does it add?
@@ -60,6 +61,7 @@ python3 -m edge_agent.metrics data/readings.sqlite
 python3 scripts/run_recovery_experiment.py
 python3 scripts/run_inference_experiment.py
 python3 scripts/run_tiny_model_experiment.py
+python3 scripts/run_tiny_model_stress_experiment.py
 python3 scripts/run_sampling_experiment.py
 python3 scripts/run_batch_write_experiment.py
 python3 scripts/run_stability_filter_experiment.py
@@ -96,14 +98,16 @@ humidity, pressure, latency jitter, dropout, noisy readings, and restart-gap mar
 
 ## Results Snapshot
 
-These values come from the default deterministic synthetic sample. They are useful for
-comparing software behavior, not for claiming real hardware performance.
+Most values come from the default deterministic synthetic sample. The stress-test row
+uses multiple deterministic synthetic seeds. These values are useful for comparing
+software behavior, not for claiming real hardware performance.
 
 | Experiment | Baseline | Optimized / alternate path | Main result | Trade-off / limit |
 | --- | ---: | ---: | --- | --- |
 | Local write failure | 120 rows lost | 0 rows lost | JSONL buffer + checkpoint recovers the failed write window | Does not remove unrelated synthetic dropout |
 | Quantized-like scoring | 48 B state, F1 0.9600 | 6 B state, F1 0.9600 | Smaller stored state with same detection quality on this sample | Python timing is too small for hardware claims |
 | Tiny learned model | 104 B state, F1 1.0000 | 42 B state, F1 1.0000 | Quantized learned model matches float learned model on the held-out split | Synthetic test split has only 3 anomaly rows |
+| Tiny model stress test | Statistical F1 0.8767 | Quantized learned F1 0.9487 | 7 deterministic seeds cover 41 held-out anomaly rows | Still synthetic; no hardware timing claim |
 | Adaptive sampling | 1738 sampled rows, F1 0.9600 | 1470 sampled rows, F1 0.8696 | About 15.42% fewer inferred rows | Recall drops because isolated anomalies can be skipped |
 | Batch SQLite writes | 1800 commits | 18 commits | Commit count drops by 1782 | Wall-clock timing must be re-measured on target storage |
 | Hysteresis filter | 2 false positives, recall 1.0000 | 0 false positives, recall 0.8333 | Single-sample false alerts are removed | Sustained anomaly confirmation is delayed by 1 sample |
@@ -189,6 +193,34 @@ be moved to target hardware later.
 </details>
 
 <details>
+<summary><strong>v8 Tiny Model Multi-Seed Stress Test</strong></summary>
+
+This experiment repeats the tiny learned model comparison across 7 deterministic
+synthetic seeds: `11, 23, 42, 71, 101, 133, 191`. It keeps the same 70/30 chronological
+train/test split for each seed and aggregates the held-out results.
+
+| Metric | Statistical scorer | Float tiny model | Quantized tiny model |
+| --- | ---: | ---: | ---: |
+| seeds | 7 | 7 | 7 |
+| held-out rows | 3676 | 3676 | 3676 |
+| held-out anomalies | 41 | 41 | 41 |
+| true positives | 32 | 37 | 37 |
+| false positives | 0 | 0 | 0 |
+| false negatives | 9 | 4 | 4 |
+| precision | 1.0000 | 1.0000 | 1.0000 |
+| recall | 0.7805 | 0.9024 | 0.9024 |
+| aggregate F1 | 0.8767 | 0.9487 | 0.9487 |
+| mean seed F1 | 0.8849 | 0.9558 | 0.9558 |
+| minimum seed F1 | 0.7273 | 0.8333 | 0.8333 |
+| model state size | 48 bytes | 104 bytes | 42 bytes |
+
+This reduces the chance that the v7 result is only a lucky split. It is still a
+synthetic stress test, so it strengthens reproducibility evidence but does not replace
+target-device measurement.
+
+</details>
+
+<details>
 <summary><strong>v3 Fixed 1 Hz vs Adaptive Sampling</strong></summary>
 
 This experiment uses the quantized-like anomaly scorer. The baseline evaluates every
@@ -269,6 +301,7 @@ The same result trail is also kept in separate notes:
 - `experiments/baseline_vs_optimized.md`
 - `experiments/inference_quantization.md`
 - `experiments/tiny_model.md`
+- `experiments/tiny_model_stress.md`
 - `experiments/adaptive_sampling.md`
 - `experiments/batch_writes.md`
 - `experiments/stability_filter.md`
@@ -287,11 +320,12 @@ The repository is organized around small, testable pieces:
 | `edge_agent/buffer.py` | Implements local JSONL buffering and checkpoints |
 | `edge_agent/inference.py` | Implements float-like and quantized-like anomaly scoring |
 | `edge_agent/tiny_model.py` | Trains and compares a tiny learned sensor classifier |
+| `edge_agent/tiny_model_stress.py` | Aggregates tiny model results across multiple synthetic seeds |
 | `edge_agent/sampling.py` | Implements fixed-rate vs adaptive sampling comparison |
 | `edge_agent/batching.py` | Compares per-row vs batched SQLite writes |
 | `edge_agent/stability_filter.py` | Compares threshold alerts vs hysteresis filtering |
 | `dashboard/app.py` | Builds a static HTML report from local summary JSON files |
-| `tests/` | Covers metrics, recovery buffer, inference, sampling, batching, filtering, and dashboard generation |
+| `tests/` | Covers metrics, recovery buffer, inference, tiny-model stress aggregation, sampling, batching, filtering, and dashboard generation |
 
 ## Metrics
 
@@ -307,6 +341,7 @@ The repository is organized around small, testable pieces:
 | `commit_count` | Number of SQLite commits used for a write path |
 | `false_positive` | Normal or transient rows incorrectly flagged as anomalies |
 | `detection_delay_samples` | How many samples later a filtered alert is confirmed |
+| `mean_seed_f1` / `min_seed_f1` | Multi-seed stress-test stability indicators |
 
 ## Why This Is Engineering-Focused
 
@@ -325,8 +360,9 @@ trade-offs:
 Current limitations:
 
 - Synthetic data only.
-- Tiny learned model is a standard-library logistic classifier; no neural-network
-  framework or hardware inference runtime yet.
+- Tiny learned model is a standard-library logistic classifier; the multi-seed stress
+  test is still synthetic and has no neural-network framework or hardware inference
+  runtime yet.
 - Adaptive sampling estimates inference-work reduction; it does not measure real CPU or
   power draw yet.
 - Batch-write timing is machine-dependent until repeated on Raspberry Pi storage.

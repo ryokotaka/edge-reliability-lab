@@ -17,6 +17,14 @@ def test_build_metric_cards_from_summaries() -> None:
                 "learned_float_like": {"model_state_bytes": 104, "f1": 1.0},
                 "learned_quantized_like": {"model_state_bytes": 42, "f1": 1.0},
             },
+            "tiny_model_stress": {
+                "seed_count": 7,
+                "total_test_anomaly_count": 41,
+                "aggregate": {
+                    "statistical_scorer": {"f1": 0.8767},
+                    "learned_quantized_like": {"f1": 0.9487},
+                },
+            },
             "sampling": {
                 "fixed_1hz": {"sampled_count": 100},
                 "adaptive": {"sampled_count": 80, "estimated_inference_reduction": 0.2},
@@ -38,6 +46,7 @@ def test_build_metric_cards_from_summaries() -> None:
         "Recovery loss",
         "Model state",
         "Tiny model F1",
+        "Stress-test F1",
         "Inference work",
         "SQLite commits",
         "False positives",

@@ -15,6 +15,7 @@ dependency. The generated HTML is ignored by git because it is a local artifact.
 | recovery | `data/recovery_experiment/summary.json` |
 | inference | `data/inference_experiment/summary.json` |
 | tiny learned model | `data/tiny_model_experiment/summary.json` |
+| tiny model stress test | `data/tiny_model_stress_experiment/summary.json` |
 | adaptive sampling | `data/sampling_experiment/summary.json` |
 | batch writes | `data/batching_experiment/summary.json` |
 | hysteresis filter | `data/filtering_experiment/summary.json` |
@@ -27,6 +28,7 @@ python3 -m edge_agent.storage data/sample.csv data/readings.sqlite
 python3 scripts/run_recovery_experiment.py
 python3 scripts/run_inference_experiment.py
 python3 scripts/run_tiny_model_experiment.py
+python3 scripts/run_tiny_model_stress_experiment.py
 python3 scripts/run_sampling_experiment.py
 python3 scripts/run_batch_write_experiment.py
 python3 scripts/run_stability_filter_experiment.py
@@ -43,6 +45,7 @@ existing before / after evidence easier to scan:
 - recovery loss: direct write vs buffered recovery
 - model state: float-like vs quantized-like scoring
 - tiny learned model: statistical scorer vs float learned vs quantized learned
+- tiny model stress test: statistical vs learned models across multiple synthetic seeds
 - inference work: fixed 1 Hz vs adaptive sampling
 - SQLite commits: per-row writes vs batch writes
 - false positives: threshold-only vs hysteresis filtering

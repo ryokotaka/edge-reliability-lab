@@ -10,3 +10,4 @@
 | 2026-05-08 | v5 hysteresis false-positive filter | false positives 2 -> 0, precision 0.7500 -> 1.0000, recall 1.0000 -> 0.8333 | Trade-off: removes single-sample false alerts but confirms sustained anomalies 1 sample later |
 | 2026-05-08 | v6 static dashboard | Generates `dashboard/index.html` from local summary JSON files | No external service or paid API; generated HTML is ignored |
 | 2026-05-09 | v7 tiny learned sensor model | float learned F1 1.0000, quantized learned F1 1.0000, state size 104 bytes -> 42 bytes | Standard-library logistic classifier on a fixed chronological synthetic split; test split has 3 anomaly rows |
+| 2026-05-09 | v8 tiny model multi-seed stress test | statistical F1 0.8767, float learned F1 0.9487, quantized learned F1 0.9487 across 41 held-out anomalies | 7 deterministic synthetic seeds; still not hardware evidence |

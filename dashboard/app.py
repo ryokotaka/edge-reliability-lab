@@ -57,6 +57,7 @@ def load_dashboard_data(root: Path = ROOT) -> dict[str, dict[str, Any] | None]:
         "recovery": load_json(root / "data/recovery_experiment/summary.json"),
         "inference": load_json(root / "data/inference_experiment/summary.json"),
         "tiny_model": load_json(root / "data/tiny_model_experiment/summary.json"),
+        "tiny_model_stress": load_json(root / "data/tiny_model_stress_experiment/summary.json"),
         "sampling": load_json(root / "data/sampling_experiment/summary.json"),
         "batching": load_json(root / "data/batching_experiment/summary.json"),
         "filtering": load_json(root / "data/filtering_experiment/summary.json"),
@@ -112,6 +113,26 @@ def build_metric_cards(data: dict[str, dict[str, Any] | None]) -> list[MetricCar
                     f"{quantized['model_state_bytes']} B"
                 ),
                 tone="good" if quantized["f1"] >= learned["f1"] else "tradeoff",
+            )
+        )
+
+    tiny_model_stress = data.get("tiny_model_stress")
+    if tiny_model_stress:
+        aggregate = tiny_model_stress["aggregate"]
+        statistical = aggregate["statistical_scorer"]
+        quantized = aggregate["learned_quantized_like"]
+        cards.append(
+            MetricCard(
+                title="Stress-test F1",
+                before_label="statistical",
+                before_value=fmt_number(statistical["f1"]),
+                after_label="quantized learned",
+                after_value=fmt_number(quantized["f1"]),
+                note=(
+                    f"{tiny_model_stress['total_test_anomaly_count']} anomalies "
+                    f"across {tiny_model_stress['seed_count']} seeds"
+                ),
+                tone="good" if quantized["f1"] >= statistical["f1"] else "tradeoff",
             )
         )
 
@@ -284,6 +305,37 @@ def _tiny_model_section(summary: dict[str, Any] | None) -> str:
                 ["precision", fmt_number(statistical["precision"]), fmt_number(learned["precision"]), fmt_number(quantized["precision"])],
                 ["recall", fmt_number(statistical["recall"]), fmt_number(learned["recall"]), fmt_number(quantized["recall"])],
                 ["F1", fmt_number(statistical["f1"]), fmt_number(learned["f1"]), fmt_number(quantized["f1"])],
+                ["state bytes", statistical["model_state_bytes"], learned["model_state_bytes"], quantized["model_state_bytes"]],
+            ],
+        )}
+      </section>
+    """
+
+
+def _tiny_model_stress_section(summary: dict[str, Any] | None) -> str:
+    if not summary:
+        return _missing_section(
+            "Tiny Model Multi-Seed Stress Test",
+            "python3 scripts/run_tiny_model_stress_experiment.py",
+        )
+    aggregate = summary["aggregate"]
+    statistical = aggregate["statistical_scorer"]
+    learned = aggregate["learned_float_like"]
+    quantized = aggregate["learned_quantized_like"]
+    return f"""
+      <section class="section">
+        <h2>Tiny Model Multi-Seed Stress Test</h2>
+        <p>{summary['seed_count']} deterministic seeds, {summary['total_test_count']} held-out rows, and {summary['total_test_anomaly_count']} held-out anomaly rows.</p>
+        {_table(
+            ["metric", "statistical", "float learned", "quantized learned"],
+            [
+                ["aggregate F1", fmt_number(statistical["f1"]), fmt_number(learned["f1"]), fmt_number(quantized["f1"])],
+                ["mean seed F1", fmt_number(statistical["mean_seed_f1"]), fmt_number(learned["mean_seed_f1"]), fmt_number(quantized["mean_seed_f1"])],
+                ["min seed F1", fmt_number(statistical["min_seed_f1"]), fmt_number(learned["min_seed_f1"]), fmt_number(quantized["min_seed_f1"])],
+                ["true positives", statistical["true_positive"], learned["true_positive"], quantized["true_positive"]],
+                ["false negatives", statistical["false_negative"], learned["false_negative"], quantized["false_negative"]],
+                ["false positives", statistical["false_positive"], learned["false_positive"], quantized["false_positive"]],
+                ["recall", fmt_number(statistical["recall"]), fmt_number(learned["recall"]), fmt_number(quantized["recall"])],
                 ["state bytes", statistical["model_state_bytes"], learned["model_state_bytes"], quantized["model_state_bytes"]],
             ],
         )}
@@ -477,7 +529,7 @@ def build_dashboard_html(root: Path = ROOT) -> str:
   <main>
     <header>
       <h1>Edge AI Reliability Benchmark Dashboard</h1>
-      <p>Local summary of reliability, lightweight inference, tiny learned model, adaptive sampling, SQLite batching, and false-positive filtering experiments.</p>
+      <p>Local summary of reliability, lightweight inference, tiny learned model stress tests, adaptive sampling, SQLite batching, and false-positive filtering experiments.</p>
       <div class="meta">Generated at {escape(generated_at)}</div>
     </header>
 
@@ -489,6 +541,7 @@ def build_dashboard_html(root: Path = ROOT) -> str:
       {_recovery_section(data["recovery"])}
       {_inference_section(data["inference"])}
       {_tiny_model_section(data["tiny_model"])}
+      {_tiny_model_stress_section(data["tiny_model_stress"])}
       {_sampling_section(data["sampling"])}
       {_batching_section(data["batching"])}
       {_filtering_section(data["filtering"])}

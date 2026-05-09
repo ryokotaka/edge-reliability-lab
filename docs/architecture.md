@@ -57,6 +57,7 @@ before the project adds real hardware noise.
 | v5 | Alert stability | Threshold-only alerting | 2-sample hysteresis confirmation |
 | v6 | Result viewing | Markdown and JSON summaries | Local static dashboard |
 | v7 | Tiny learned model | Statistical scorer and float learned classifier | Quantized-like learned classifier |
+| v8 | Tiny model stress test | One deterministic synthetic split | Multi-seed aggregate over held-out synthetic splits |
 
 ## Dashboard Layer
 
