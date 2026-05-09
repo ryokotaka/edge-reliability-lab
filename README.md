@@ -20,7 +20,7 @@ pipeline onto Raspberry Pi hardware and real sensors.
 | Storage | Local SQLite readings table |
 | Inference | Lightweight statistical scoring and a standard-library tiny learned model |
 | Reliability metrics | Missing rate, p95 latency, uptime ratio, recovery loss |
-| Optimization experiments | Local buffer, batch writes, quantized-like scoring, tiny model quantization/stress test, adaptive sampling, hysteresis filter |
+| Optimization experiments | Local buffer, batch writes, quantized-like scoring, tiny model quantization/stress test, resource budget gate, adaptive sampling, hysteresis filter |
 | Dashboard | Dependency-free static HTML generated from local experiment summaries |
 | Cost / cloud | No paid API, no cloud backend, no external service dependency |
 
@@ -34,6 +34,7 @@ for the engineering questions that appear before a product exists:
 - Can a smaller inference state preserve detection quality?
 - Can a trainable tiny model match the statistical scorer on held-out synthetic data?
 - Does that tiny-model result survive multiple synthetic seeds?
+- Which model still passes a small edge-style resource budget?
 - How much inference work can be skipped before recall drops?
 - How much overhead comes from committing every SQLite row separately?
 - Can a tiny stability filter remove transient false alerts, and what delay does it add?
@@ -62,6 +63,7 @@ python3 scripts/run_recovery_experiment.py
 python3 scripts/run_inference_experiment.py
 python3 scripts/run_tiny_model_experiment.py
 python3 scripts/run_tiny_model_stress_experiment.py
+python3 scripts/run_resource_budget_experiment.py
 python3 scripts/run_sampling_experiment.py
 python3 scripts/run_batch_write_experiment.py
 python3 scripts/run_stability_filter_experiment.py
@@ -108,6 +110,7 @@ software behavior, not for claiming real hardware performance.
 | Quantized-like scoring | 48 B state, F1 0.9600 | 6 B state, F1 0.9600 | Smaller stored state with same detection quality on this sample | Python timing is too small for hardware claims |
 | Tiny learned model | 104 B state, F1 1.0000 | 42 B state, F1 1.0000 | Quantized learned model matches float learned model on the held-out split | Synthetic test split has only 3 anomaly rows |
 | Tiny model stress test | Statistical F1 0.8767 | Quantized learned F1 0.9487 | 7 deterministic seeds cover 41 held-out anomaly rows | Still synthetic; no hardware timing claim |
+| Resource budget gate | Max state 64 B, min F1 0.9000 | Quantized tiny model passes | Float model fails state budget; statistical scorer fails quality budget | Budget is a proxy, not measured RAM/CPU |
 | Adaptive sampling | 1738 sampled rows, F1 0.9600 | 1470 sampled rows, F1 0.8696 | About 15.42% fewer inferred rows | Recall drops because isolated anomalies can be skipped |
 | Batch SQLite writes | 1800 commits | 18 commits | Commit count drops by 1782 | Wall-clock timing must be re-measured on target storage |
 | Hysteresis filter | 2 false positives, recall 1.0000 | 0 false positives, recall 0.8333 | Single-sample false alerts are removed | Sustained anomaly confirmation is delayed by 1 sample |
@@ -221,6 +224,38 @@ target-device measurement.
 </details>
 
 <details>
+<summary><strong>v9 Resource Budget Gate</strong></summary>
+
+This experiment turns the multi-seed tiny-model result into a small edge-style budget
+check. It does not measure real RAM, CPU, or power. Instead, it makes the current
+trade-off explicit by asking which model fits a strict stored-state budget while
+keeping detection quality above a fixed threshold.
+
+| Budget item | Threshold |
+| --- | ---: |
+| model state size | <= 64 bytes |
+| aggregate F1 | >= 0.9000 |
+| false-negative rate | <= 10.00% |
+| false positives | <= 0 |
+
+| Metric | Statistical scorer | Float tiny model | Quantized tiny model |
+| --- | ---: | ---: | ---: |
+| model state size | 48 bytes | 104 bytes | 42 bytes |
+| aggregate F1 | 0.8767 | 0.9487 | 0.9487 |
+| false-negative rate | 21.95% | 9.76% | 9.76% |
+| false positives | 0 | 0 | 0 |
+| state budget | pass | fail | pass |
+| F1 budget | fail | pass | pass |
+| false-negative budget | fail | pass | pass |
+| all budgets | fail | fail | pass |
+
+Under this proxy budget, the quantized tiny model is the only model that passes all
+checks. This is useful for explaining the engineering decision, but it should not be
+presented as measured hardware resource usage.
+
+</details>
+
+<details>
 <summary><strong>v3 Fixed 1 Hz vs Adaptive Sampling</strong></summary>
 
 This experiment uses the quantized-like anomaly scorer. The baseline evaluates every
@@ -302,6 +337,7 @@ The same result trail is also kept in separate notes:
 - `experiments/inference_quantization.md`
 - `experiments/tiny_model.md`
 - `experiments/tiny_model_stress.md`
+- `experiments/resource_budget.md`
 - `experiments/adaptive_sampling.md`
 - `experiments/batch_writes.md`
 - `experiments/stability_filter.md`
@@ -321,6 +357,7 @@ The repository is organized around small, testable pieces:
 | `edge_agent/inference.py` | Implements float-like and quantized-like anomaly scoring |
 | `edge_agent/tiny_model.py` | Trains and compares a tiny learned sensor classifier |
 | `edge_agent/tiny_model_stress.py` | Aggregates tiny model results across multiple synthetic seeds |
+| `edge_agent/resource_budget.py` | Checks model choices against a proxy edge-style resource budget |
 | `edge_agent/sampling.py` | Implements fixed-rate vs adaptive sampling comparison |
 | `edge_agent/batching.py` | Compares per-row vs batched SQLite writes |
 | `edge_agent/stability_filter.py` | Compares threshold alerts vs hysteresis filtering |
@@ -342,6 +379,7 @@ The repository is organized around small, testable pieces:
 | `false_positive` | Normal or transient rows incorrectly flagged as anomalies |
 | `detection_delay_samples` | How many samples later a filtered alert is confirmed |
 | `mean_seed_f1` / `min_seed_f1` | Multi-seed stress-test stability indicators |
+| `passes_all` | Whether a model clears all configured resource-budget checks |
 
 ## Why This Is Engineering-Focused
 
@@ -363,6 +401,7 @@ Current limitations:
 - Tiny learned model is a standard-library logistic classifier; the multi-seed stress
   test is still synthetic and has no neural-network framework or hardware inference
   runtime yet.
+- Resource budget checks are proxy thresholds, not measured RAM, CPU, or power usage.
 - Adaptive sampling estimates inference-work reduction; it does not measure real CPU or
   power draw yet.
 - Batch-write timing is machine-dependent until repeated on Raspberry Pi storage.

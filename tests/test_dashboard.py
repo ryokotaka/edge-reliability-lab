@@ -25,6 +25,14 @@ def test_build_metric_cards_from_summaries() -> None:
                     "learned_quantized_like": {"f1": 0.9487},
                 },
             },
+            "resource_budget": {
+                "recommended_model": "learned_quantized_like",
+                "recommended_label": "quantized tiny model",
+                "budget": {"max_model_state_bytes": 64},
+                "models": {
+                    "learned_quantized_like": {"model_state_bytes": 42, "f1": 0.9487},
+                },
+            },
             "sampling": {
                 "fixed_1hz": {"sampled_count": 100},
                 "adaptive": {"sampled_count": 80, "estimated_inference_reduction": 0.2},
@@ -47,6 +55,7 @@ def test_build_metric_cards_from_summaries() -> None:
         "Model state",
         "Tiny model F1",
         "Stress-test F1",
+        "Resource budget",
         "Inference work",
         "SQLite commits",
         "False positives",

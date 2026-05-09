@@ -58,6 +58,7 @@ def load_dashboard_data(root: Path = ROOT) -> dict[str, dict[str, Any] | None]:
         "inference": load_json(root / "data/inference_experiment/summary.json"),
         "tiny_model": load_json(root / "data/tiny_model_experiment/summary.json"),
         "tiny_model_stress": load_json(root / "data/tiny_model_stress_experiment/summary.json"),
+        "resource_budget": load_json(root / "data/resource_budget_experiment/summary.json"),
         "sampling": load_json(root / "data/sampling_experiment/summary.json"),
         "batching": load_json(root / "data/batching_experiment/summary.json"),
         "filtering": load_json(root / "data/filtering_experiment/summary.json"),
@@ -133,6 +134,23 @@ def build_metric_cards(data: dict[str, dict[str, Any] | None]) -> list[MetricCar
                     f"across {tiny_model_stress['seed_count']} seeds"
                 ),
                 tone="good" if quantized["f1"] >= statistical["f1"] else "tradeoff",
+            )
+        )
+
+    resource_budget = data.get("resource_budget")
+    if resource_budget:
+        recommended = resource_budget["recommended_label"] or "none"
+        budget = resource_budget["budget"]
+        quantized = resource_budget["models"]["learned_quantized_like"]
+        cards.append(
+            MetricCard(
+                title="Resource budget",
+                before_label="state budget",
+                before_value=fmt_number(budget["max_model_state_bytes"], suffix=" B"),
+                after_label="selected",
+                after_value=recommended,
+                note=f"quantized state {quantized['model_state_bytes']} B, F1 {fmt_number(quantized['f1'])}",
+                tone="good" if resource_budget["recommended_model"] else "tradeoff",
             )
         )
 
@@ -343,6 +361,38 @@ def _tiny_model_stress_section(summary: dict[str, Any] | None) -> str:
     """
 
 
+def _pass_fail(value: bool) -> str:
+    return "pass" if value else "fail"
+
+
+def _resource_budget_section(summary: dict[str, Any] | None) -> str:
+    if not summary:
+        return _missing_section(
+            "Resource Budget Gate",
+            "python3 scripts/run_resource_budget_experiment.py",
+        )
+    budget = summary["budget"]
+    models = summary["models"]
+    return f"""
+      <section class="section">
+        <h2>Resource Budget Gate</h2>
+        <p>Budget: state <= {budget['max_model_state_bytes']} B, F1 >= {fmt_number(budget['min_f1'])}, false-negative rate <= {pct(budget['max_false_negative_rate'])}, false positives <= {budget['max_false_positive_count']}.</p>
+        {_table(
+            ["metric", "statistical", "float learned", "quantized learned"],
+            [
+                ["model state bytes", models["statistical_scorer"]["model_state_bytes"], models["learned_float_like"]["model_state_bytes"], models["learned_quantized_like"]["model_state_bytes"]],
+                ["F1", fmt_number(models["statistical_scorer"]["f1"]), fmt_number(models["learned_float_like"]["f1"]), fmt_number(models["learned_quantized_like"]["f1"])],
+                ["false-negative rate", pct(models["statistical_scorer"]["false_negative_rate"]), pct(models["learned_float_like"]["false_negative_rate"]), pct(models["learned_quantized_like"]["false_negative_rate"])],
+                ["state budget", _pass_fail(models["statistical_scorer"]["passes_state_budget"]), _pass_fail(models["learned_float_like"]["passes_state_budget"]), _pass_fail(models["learned_quantized_like"]["passes_state_budget"])],
+                ["F1 budget", _pass_fail(models["statistical_scorer"]["passes_f1_budget"]), _pass_fail(models["learned_float_like"]["passes_f1_budget"]), _pass_fail(models["learned_quantized_like"]["passes_f1_budget"])],
+                ["all budgets", _pass_fail(models["statistical_scorer"]["passes_all"]), _pass_fail(models["learned_float_like"]["passes_all"]), _pass_fail(models["learned_quantized_like"]["passes_all"])],
+            ],
+        )}
+        <p>Recommended model under this budget: {escape(summary['recommended_label'])}.</p>
+      </section>
+    """
+
+
 def _sampling_section(summary: dict[str, Any] | None) -> str:
     if not summary:
         return _missing_section("Adaptive Sampling", "python3 scripts/run_sampling_experiment.py")
@@ -529,7 +579,7 @@ def build_dashboard_html(root: Path = ROOT) -> str:
   <main>
     <header>
       <h1>Edge AI Reliability Benchmark Dashboard</h1>
-      <p>Local summary of reliability, lightweight inference, tiny learned model stress tests, adaptive sampling, SQLite batching, and false-positive filtering experiments.</p>
+      <p>Local summary of reliability, lightweight inference, tiny learned model stress tests, resource-budget checks, adaptive sampling, SQLite batching, and false-positive filtering experiments.</p>
       <div class="meta">Generated at {escape(generated_at)}</div>
     </header>
 
@@ -542,6 +592,7 @@ def build_dashboard_html(root: Path = ROOT) -> str:
       {_inference_section(data["inference"])}
       {_tiny_model_section(data["tiny_model"])}
       {_tiny_model_stress_section(data["tiny_model_stress"])}
+      {_resource_budget_section(data["resource_budget"])}
       {_sampling_section(data["sampling"])}
       {_batching_section(data["batching"])}
       {_filtering_section(data["filtering"])}

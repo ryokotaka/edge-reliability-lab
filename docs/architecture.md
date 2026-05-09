@@ -58,6 +58,7 @@ before the project adds real hardware noise.
 | v6 | Result viewing | Markdown and JSON summaries | Local static dashboard |
 | v7 | Tiny learned model | Statistical scorer and float learned classifier | Quantized-like learned classifier |
 | v8 | Tiny model stress test | One deterministic synthetic split | Multi-seed aggregate over held-out synthetic splits |
+| v9 | Resource budget gate | Quality or size viewed separately | Proxy budget combining F1, false-negative rate, false positives, and state size |
 
 ## Dashboard Layer
 
