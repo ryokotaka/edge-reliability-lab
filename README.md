@@ -425,17 +425,19 @@ The repository is organized around small, testable pieces:
 | `passes_all` | Whether a model clears all configured resource-budget checks |
 | `prediction_mismatch_count` | Difference between in-memory model predictions and loaded artifact predictions |
 
-## Why This Is Engineering-Focused
+## Engineering Approach
 
-The scope is intentionally small, but the benchmark is built around real systems
-trade-offs:
+The scope is intentionally small, but each part is built to make the trade-offs
+measurable:
 
 - Results are reproducible from deterministic input data.
-- Each optimization is compared against a baseline.
-- Improvements are not presented as free wins; the README records the cost when recall,
-  latency, or evidence strength changes.
-- The code is split into small modules with tests and a GitHub Actions workflow.
-- The project avoids inflated claims until the same measurements run on target hardware.
+- Each experiment compares a baseline path with an optimized or alternate path.
+- Trade-offs are recorded explicitly, including recall drops, proxy limits, and
+  hardware-measurement gaps.
+- The code is split into small modules with tests for storage, metrics, inference,
+  model export, sampling, batching, filtering, and dashboard generation.
+- Hardware performance claims are deferred until the same experiments run on Raspberry
+  Pi.
 
 ## Scope and Limits
 
