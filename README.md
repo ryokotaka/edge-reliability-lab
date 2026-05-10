@@ -3,14 +3,13 @@
 A student-scale systems project for checking whether a small edge-AI-style sensor
 inference pipeline keeps working when data is missing, noisy, delayed, or interrupted.
 
-In plain terms: this repository creates a small stream of environmental sensor data,
-stores it locally, runs lightweight anomaly detection and a tiny learned model,
-intentionally introduces failure cases, and compares simple software fixes against
-baseline behavior.
+This repo generates a small stream of environmental sensor data, stores it locally,
+runs lightweight anomaly detection and a tiny learned model, adds failure cases, and
+compares simple fixes against baseline behavior.
 
-The current version uses synthetic data on a laptop. That is intentional: the goal is
-to make the measurement and optimization loop reproducible before moving the same
-pipeline onto Raspberry Pi hardware and real sensors.
+For now, it uses synthetic data on a laptop. I started there so the measurement and
+optimization loop is reproducible before moving the same pipeline onto Raspberry Pi
+hardware and real sensors.
 
 ## Current Status
 
@@ -24,10 +23,10 @@ pipeline onto Raspberry Pi hardware and real sensors.
 | Dashboard | Dependency-free static HTML generated from local experiment summaries |
 | Cost / cloud | No paid API, no cloud backend, no external service dependency |
 
-## What This Demonstrates
+## What I Measured
 
-This project is not trying to be a polished edge-AI product. It is a compact benchmark
-for the engineering questions that appear before a product exists:
+This project is intentionally small. I used it to check the kinds of engineering
+questions that come up before this would make sense on real hardware:
 
 - What happens when local writes fail?
 - How much data can a checkpoint buffer recover?
@@ -40,7 +39,7 @@ for the engineering questions that appear before a product exists:
 - How much overhead comes from committing every SQLite row separately?
 - Can a tiny stability filter remove transient false alerts, and what delay does it add?
 
-The important part is the comparison shape:
+The main pattern is:
 
 ```text
 baseline behavior -> software optimization -> measured trade-off
@@ -121,11 +120,10 @@ software behavior, not for claiming real hardware performance.
 
 ## Detailed Experiment Results
 
-The README keeps the full result tables close to the project overview because many
-readers will not open separate experiment files. Each section is collapsed by default
-so the top-level README stays skimmable. The sections are grouped by reader priority:
-the tiny sensor-inference results come first, followed by supporting reliability and
-optimization experiments.
+The full result tables are included here because they are easier to find in the README
+than in separate experiment notes. Each section is collapsed by default so the top-level
+README is still easy to scan. The tiny sensor-inference results come first because they
+are the current focus, followed by supporting reliability and optimization experiments.
 
 ### Main Results: Tiny Sensor Inference
 
@@ -151,9 +149,9 @@ from normal temperature, humidity, pressure, and latency values.
 | model state size | 48 bytes | 104 bytes | 42 bytes |
 
 This is a TinyML-style baseline, not a neural-network framework or hardware inference
-runtime. The held-out split is small and synthetic, so the result should be read as a
-local reproducibility step: the project now has a trainable inference stage that can
-be moved to target hardware later.
+runtime. The held-out split is small and synthetic, so I treat this as a reproducibility
+step: the project now has a trainable inference stage that can be moved to target
+hardware later.
 
 </details>
 
@@ -179,9 +177,8 @@ train/test split for each seed and aggregates the held-out results.
 | minimum seed F1 | 0.7273 | 0.8333 | 0.8333 |
 | model state size | 48 bytes | 104 bytes | 42 bytes |
 
-This reduces the chance that the v7 result is only a lucky split. It is still a
-synthetic stress test, so it strengthens reproducibility evidence but does not replace
-target-device measurement.
+This is a check against the v7 result being only one lucky split. It is still a
+synthetic stress test, so it does not replace target-device measurement.
 
 </details>
 
@@ -212,15 +209,14 @@ keeping detection quality above a fixed threshold.
 | all budgets | fail | fail | pass |
 
 Under this proxy budget, the quantized tiny model is the only model that passes all
-checks. This is useful for explaining the engineering decision, but it should not be
-presented as measured hardware resource usage.
+checks. This should not be presented as measured hardware resource usage.
 
 </details>
 
 <details>
 <summary><strong>v10 Exported Quantized Model Artifact</strong></summary>
 
-This experiment checks the next deployment-shaped step: train and quantize the tiny
+This experiment checks the next deployment-style step: train and quantize the tiny
 model once, export only the quantized runtime state, load that artifact back, and run
 inference without retraining.
 
@@ -242,9 +238,8 @@ is a readable storage format, not a claim about compact binary deployment.
 | prediction mismatches | 0 | 0 |
 | max probability difference | 0.0000 | 0.0000 |
 
-This does not make hardware claims. It makes the runtime boundary clearer: the device
-side can be shaped as `load small model state -> infer`, while training remains an
-offline local step.
+This does not make hardware claims. It separates the runtime path from training:
+`load small model state -> infer`, while training remains an offline local step.
 
 </details>
 
@@ -367,12 +362,12 @@ confirming an alert.
 | first detected anomaly seq | 95 | 96 | one-sample confirmation delay |
 
 The hysteresis filter removed transient false positives, but it delayed confirmed
-detection by one sample. This is useful for explaining false-positive control as a
-trade-off, not as a universally better detector.
+detection by one sample. I treat this as a false-positive trade-off, not as a
+universally better detector.
 
 </details>
 
-The same result trail is also kept in separate notes:
+Detailed notes are also kept in:
 
 - `experiments/tiny_model.md`
 - `experiments/tiny_model_stress.md`
@@ -477,10 +472,10 @@ The first hardware target is deliberately modest:
 The next defensible step is to run the same experiments on Raspberry Pi and record CPU,
 memory, wall-clock latency, storage behavior, and optional power usage.
 
-## Data and Security Scope
+## Data and Security
 
-This repository is designed to be inspectable without exposing private data or relying
-on external services:
+This repository can be reviewed without exposing private data or relying on external
+services:
 
 - The tracked sample data is synthetic.
 - There are no credentials, API keys, tokens, private endpoints, or personal datasets
