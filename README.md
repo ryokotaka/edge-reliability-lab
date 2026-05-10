@@ -123,53 +123,11 @@ software behavior, not for claiming real hardware performance.
 
 The README keeps the full result tables close to the project overview because many
 readers will not open separate experiment files. Each section is collapsed by default
-so the top-level README stays skimmable.
+so the top-level README stays skimmable. The sections are grouped by reader priority:
+the tiny sensor-inference results come first, followed by supporting reliability and
+optimization experiments.
 
-<details>
-<summary><strong>v1 Local Buffer / Checkpoint Recovery</strong></summary>
-
-This experiment simulates a SQLite write failure for sequence `600..719`. The baseline
-direct-write path loses those rows. The optimized path writes them to a local JSONL
-buffer, records a checkpoint, and flushes them to SQLite after recovery.
-
-| Metric | Baseline direct write | Buffered recovery | Interpretation |
-| --- | ---: | ---: | --- |
-| observed samples | 1680 | 1800 | local buffer recovered the write-failure window |
-| missing rate | 0.0989 | 0.0344 | recovery removed absent sequence slots |
-| p95 latency | 125.789 ms | 132.089 ms | recovered rows include original jitter distribution |
-| uptime ratio | 0.8900 | 0.9539 | recovered ok rows restore uptime accounting |
-| recovery loss | 120 samples | 0 samples | checkpoint recovery effect |
-
-This is intentionally narrow: buffering reduces recovery loss, but it does not remove
-the unrelated synthetic dropout already present in the stream.
-
-</details>
-
-<details>
-<summary><strong>v2 Float-like vs Quantized-like Anomaly Scoring</strong></summary>
-
-This is lightweight anomaly scoring, not a neural-network benchmark. It treats
-`status = noisy` as the synthetic ground-truth anomaly label and compares float-like
-scoring with quantized-like integer scoring.
-
-| Metric | Float-like scoring | Quantized-like scoring | Interpretation |
-| --- | ---: | ---: | --- |
-| evaluated samples | 1738 | 1738 | missing rows are excluded from inference |
-| true anomalies | 13 | 13 | synthetic noisy rows |
-| true positives | 12 | 12 | same detected anomalies |
-| false positives | 0 | 0 | no normal rows flagged |
-| false negatives | 1 | 1 | one noisy row below threshold |
-| precision | 1.0000 | 1.0000 | no false positives |
-| recall | 0.9231 | 0.9231 | one missed noisy row |
-| F1 | 0.9600 | 0.9600 | detection quality preserved |
-| p95 inference latency | ~0.002 ms | ~0.001 ms | Python-level timing only |
-| model state size | 48 bytes | 6 bytes | quantized-like state is smaller |
-
-Quantized-like scoring preserved detection quality and reduced stored state size in
-this synthetic benchmark. The timing numbers are too small and Python-dependent to use
-as hardware evidence.
-
-</details>
+### Main Results: Tiny Sensor Inference
 
 <details>
 <summary><strong>v7 Statistical Scorer vs Tiny Learned Sensor Model</strong></summary>
@@ -290,6 +248,54 @@ offline local step.
 
 </details>
 
+### Supporting Reliability / Optimization Results
+
+<details>
+<summary><strong>v1 Local Buffer / Checkpoint Recovery</strong></summary>
+
+This experiment simulates a SQLite write failure for sequence `600..719`. The baseline
+direct-write path loses those rows. The optimized path writes them to a local JSONL
+buffer, records a checkpoint, and flushes them to SQLite after recovery.
+
+| Metric | Baseline direct write | Buffered recovery | Interpretation |
+| --- | ---: | ---: | --- |
+| observed samples | 1680 | 1800 | local buffer recovered the write-failure window |
+| missing rate | 0.0989 | 0.0344 | recovery removed absent sequence slots |
+| p95 latency | 125.789 ms | 132.089 ms | recovered rows include original jitter distribution |
+| uptime ratio | 0.8900 | 0.9539 | recovered ok rows restore uptime accounting |
+| recovery loss | 120 samples | 0 samples | checkpoint recovery effect |
+
+This is intentionally narrow: buffering reduces recovery loss, but it does not remove
+the unrelated synthetic dropout already present in the stream.
+
+</details>
+
+<details>
+<summary><strong>v2 Float-like vs Quantized-like Anomaly Scoring</strong></summary>
+
+This is lightweight anomaly scoring, not a neural-network benchmark. It treats
+`status = noisy` as the synthetic ground-truth anomaly label and compares float-like
+scoring with quantized-like integer scoring.
+
+| Metric | Float-like scoring | Quantized-like scoring | Interpretation |
+| --- | ---: | ---: | --- |
+| evaluated samples | 1738 | 1738 | missing rows are excluded from inference |
+| true anomalies | 13 | 13 | synthetic noisy rows |
+| true positives | 12 | 12 | same detected anomalies |
+| false positives | 0 | 0 | no normal rows flagged |
+| false negatives | 1 | 1 | one noisy row below threshold |
+| precision | 1.0000 | 1.0000 | no false positives |
+| recall | 0.9231 | 0.9231 | one missed noisy row |
+| F1 | 0.9600 | 0.9600 | detection quality preserved |
+| p95 inference latency | ~0.002 ms | ~0.001 ms | Python-level timing only |
+| model state size | 48 bytes | 6 bytes | quantized-like state is smaller |
+
+Quantized-like scoring preserved detection quality and reduced stored state size in
+this synthetic benchmark. The timing numbers are too small and Python-dependent to use
+as hardware evidence.
+
+</details>
+
 <details>
 <summary><strong>v3 Fixed 1 Hz vs Adaptive Sampling</strong></summary>
 
@@ -368,12 +374,12 @@ trade-off, not as a universally better detector.
 
 The same result trail is also kept in separate notes:
 
-- `experiments/baseline_vs_optimized.md`
-- `experiments/inference_quantization.md`
 - `experiments/tiny_model.md`
 - `experiments/tiny_model_stress.md`
 - `experiments/resource_budget.md`
 - `experiments/model_artifact.md`
+- `experiments/baseline_vs_optimized.md`
+- `experiments/inference_quantization.md`
 - `experiments/adaptive_sampling.md`
 - `experiments/batch_writes.md`
 - `experiments/stability_filter.md`
@@ -469,9 +475,10 @@ The first hardware target is deliberately modest:
 The next defensible step is to run the same experiments on Raspberry Pi and record CPU,
 memory, wall-clock latency, storage behavior, and optional power usage.
 
-## Publication and Security Notes
+## Data and Security Scope
 
-This repository is designed to be safe to show publicly in its current form:
+This repository is designed to be inspectable without exposing private data or relying
+on external services:
 
 - The tracked sample data is synthetic.
 - There are no credentials, API keys, tokens, private endpoints, or personal datasets
@@ -479,17 +486,8 @@ This repository is designed to be safe to show publicly in its current form:
 - The project runs locally and does not send data to an external service.
 - Generated SQLite databases, experiment output folders, virtual environments, and the
   generated dashboard HTML are ignored by git.
-- Future real sensor captures should be reviewed before committing, especially if they
-  include location, device identifiers, personal environment data, or timestamps that
-  should not be public.
-
-Before publishing a new version, run the tests and inspect the tracked file set:
-
-```bash
-git status --short
-git ls-files
-python3 -m pytest
-```
+- Personal screenshots, profile pages, local terminal recordings, and real sensor
+  captures are not part of the public artifact unless they are separately reviewed.
 
 ## License
 
