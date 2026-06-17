@@ -1,4 +1,4 @@
-# Edge AI Reliability Benchmark
+# Edge Reliability Lab
 
 A student-scale systems project for checking whether a small edge-AI-style sensor
 inference pipeline keeps working when data is missing, noisy, delayed, or interrupted.
@@ -10,6 +10,11 @@ compares simple fixes against baseline behavior.
 For now, it uses synthetic data on a laptop. I started there so the measurement and
 optimization loop is reproducible before moving the same pipeline onto Raspberry Pi
 hardware and real sensors.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
+[![CI](https://github.com/ryokotaka/edge-reliability-lab/actions/workflows/python.yml/badge.svg)](https://github.com/ryokotaka/edge-reliability-lab/actions/workflows/python.yml)
+![Stage](https://img.shields.io/badge/stage-synthetic%20data%2C%20pre--hardware-orange.svg)
 
 ## Current Status
 
@@ -286,7 +291,7 @@ scoring with quantized-like integer scoring.
 | model state size | 48 bytes | 6 bytes | quantized-like state is smaller |
 
 Quantized-like scoring preserved detection quality and reduced stored state size in
-this synthetic benchmark. The timing numbers are too small and Python-dependent to use
+this synthetic experiment. The timing numbers are too small and Python-dependent to use
 as hardware evidence.
 
 </details>
@@ -474,17 +479,9 @@ memory, wall-clock latency, storage behavior, and optional power usage.
 
 ## Data and Security
 
-This repository can be reviewed without exposing private data or relying on external
-services:
-
-- The tracked sample data is synthetic.
-- There are no credentials, API keys, tokens, private endpoints, or personal datasets
-  required by the benchmark.
-- The project runs locally and does not send data to an external service.
-- Generated SQLite databases, experiment output folders, virtual environments, and the
-  generated dashboard HTML are ignored by git.
-- Personal screenshots, profile pages, local terminal recordings, and real sensor
-  captures are not part of the public artifact unless they are separately reviewed.
+All tracked data is synthetic, and the project runs entirely locally — no credentials,
+API keys, external services, or personal datasets. Generated databases, experiment
+outputs, virtual environments, and the dashboard HTML are git-ignored.
 
 ## License
 
