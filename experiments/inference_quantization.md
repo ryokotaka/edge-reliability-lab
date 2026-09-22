@@ -15,6 +15,15 @@ float-like scoring against quantized-like scoring before moving to Raspberry Pi.
 5. Score the same rows with a quantized-like integer scorer.
 6. Compare detection quality, p95 inference latency, and model state size.
 
+## State-size estimate
+
+The code currently reports 48 bytes for the float-like scorer and 6 bytes for the
+quantized-like scorer. The latter assumes one byte per mean and standard deviation,
+but the implementation stores Python integers without an int8 range check. On the
+default sample, the scaled means are 254, 546, and 10,100, so that assumption does not
+hold. Treat the 6-byte output as an invalid size estimate, not a measured reduction.
+The detection results below are unaffected by this accounting issue.
+
 ## Result
 
 | Metric | Float-like scoring | Quantized-like scoring |
@@ -30,12 +39,12 @@ float-like scoring against quantized-like scoring before moving to Raspberry Pi.
 | F1 | 0.9600 | 0.9600 |
 | average inference latency | ~0.001 ms | ~0.001 ms |
 | p95 inference latency | ~0.002 ms | ~0.001 ms |
-| model state size | 48 bytes | 6 bytes |
+| reported state estimate | 48 bytes | 6 bytes (invalid; see above) |
 
 ## Interpretation
 
-Quantized-like scoring preserved detection quality and reduced stored state size in
-the synthetic benchmark. The latency numbers are too small and Python-dependent to use
-as hardware evidence. The follow-up v7 experiment adds a standard-library tiny learned
-model; hardware CPU, memory, and wall-clock latency should still wait for Raspberry Pi
+Rounding the scorer's parameters preserved detection quality on this synthetic
+sample. A storage-size comparison needs a defined encoding and range checks first.
+The latency numbers are too small and Python-dependent to use as hardware evidence.
+The follow-up v7 experiment adds a standard-library tiny learned model; hardware CPU, memory, and wall-clock latency should still wait for Raspberry Pi
 measurements.

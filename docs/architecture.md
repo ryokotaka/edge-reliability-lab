@@ -8,17 +8,19 @@ later.
 ## Current Pipeline
 
 ```text
-synthetic sensor-like stream
-  -> CSV sample
-  -> SQLite readings table
-  -> reliability metrics
-  -> lightweight anomaly scoring
-  -> tiny learned sensor model
-  -> exported quantized model artifact
-  -> software optimization experiments
-  -> summary JSON files
-  -> static HTML dashboard
+synthetic CSV
+  ├─ SQLite storage and reliability metrics
+  ├─ recovery, scoring, model, sampling, write, and alert experiments
+  │    └─ summary JSON files ──> static HTML dashboard
+  └─ model training and export ──> JSON artifact ──> loaded-model comparison
+
+multiple synthetic seeds
+  └─ held-out model comparisons ──> stress summary ──> resource-budget check
 ```
+
+These are separate experiments, rather than consecutive stages of one inference
+pipeline. Most read the CSV directly. The dashboard collects their summary files;
+the resource-budget check depends on the multi-seed model summary.
 
 ## Data Layer
 

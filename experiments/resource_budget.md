@@ -16,6 +16,12 @@ same pipeline moves to target hardware.
 3. Apply the same proxy budget to each model.
 4. Recommend the smallest model that passes all configured checks.
 
+The size check uses `state_size_bytes()` estimates. The learned model's 42-byte
+estimate counts normalization values, weights, and bias at assumed numeric widths;
+it excludes scale factors, the decision threshold, and Python runtime overhead.
+There is no 42-byte binary model file. This gate therefore applies to the counted
+parameters, not to a complete deployable artifact or a device's RAM usage.
+
 Default budget:
 
 | Budget item | Threshold |

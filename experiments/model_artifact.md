@@ -19,8 +19,11 @@ prove that inference can run from exported quantized model state without retrain
 6. Load the JSON artifact back into a `QuantizedTinyModel`.
 7. Compare loaded-artifact predictions against the in-memory quantized model.
 
-The JSON artifact is intentionally readable for review. Its file size is larger than
-the model state because it includes field names, formatting, and metadata.
+The JSON artifact is readable for review. The 42-byte figure counts normalization
+values, weights, and bias at assumed numeric widths. The JSON also stores scale
+factors and the decision threshold, as well as field names, formatting, and metadata.
+The estimate is therefore neither a complete binary artifact size nor Python memory
+usage.
 
 ## Result
 
@@ -44,7 +47,7 @@ Artifact details:
 | --- | ---: |
 | artifact version | 1 |
 | model type | `quantized_tiny_sensor_model` |
-| runtime state size | 42 bytes |
+| estimated parameter bytes | 42 bytes |
 | JSON artifact file size | 929 bytes |
 
 ## Interpretation
