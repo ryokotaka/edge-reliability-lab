@@ -4,16 +4,17 @@
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A small Python project for testing what happens to a sensor pipeline when readings
-are missing, writes fail, or anomaly detection has to do less work.
+A Python testbed for sensor pipelines that need to keep collecting data when writes
+fail and run anomaly detection with limited resources.
 
-It compares local buffering, SQLite batch writes, a statistical anomaly scorer, and a
-small learned classifier. I started with synthetic temperature, humidity, and pressure
-data so I could repeat the same failures and see what each change actually fixes.
-Everything runs locally with the Python standard library.
+You can replay the same failures, compare a buffered pipeline with direct writes,
+and measure how model choice and sampling affect detection. The experiments use
+synthetic temperature, humidity, and pressure data and run locally with the Python
+standard library.
 
-**Current scope:** synthetic data on a laptop. Raspberry Pi and real-sensor measurements
-are still planned.
+In the write-failure experiment, a local buffer recovered **all 120 readings** that
+direct writes lost. Other experiments compare that kind of reliability gain with
+the cost of smaller models, fewer inference calls, and batched storage.
 
 ## What the experiments show
 
@@ -119,7 +120,10 @@ reloading it produces the same predictions without retraining.
 | [`dashboard/`](dashboard/) | Static HTML report generator |
 | [`experiments/`](experiments/) | Methods, recorded results, and interpretation |
 
-## Reading the results
+## Measurement notes
+
+<details>
+<summary>Data splits, parameter-size estimates, and what the metrics measure</summary>
 
 The learned model and statistical scorer use different features and calibration
 procedures, so their comparison does not isolate the effect of learning alone.
@@ -139,6 +143,8 @@ expected rows marked `ok`, and `p95_latency_ms` summarizes generated latency val
 Neither measures live service availability or device inference time. The recovery
 experiment models an unavailable database write path while the JSONL buffer remains
 writable; it does not test sudden power loss.
+
+</details>
 
 ## Experiment notes
 
