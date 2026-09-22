@@ -42,15 +42,12 @@ float-like scoring with quantized-like scoring.
 | recall | 0.9231 | 0.9231 | one missed noisy row |
 | F1 | 0.9600 | 0.9600 | detection quality preserved |
 | p95 inference latency | ~0.002 ms | ~0.001 ms | Python-level timing only |
-| model state size | 48 bytes | 6 bytes | quantized-like state is smaller |
+| reported state estimate | 48 bytes | 6 bytes | one-byte assumption is invalid; see the quantization note |
 
-Interpretation:
-
-```text
-Quantized-like scoring preserved detection quality and reduced stored model state
-in this small synthetic benchmark. Timing must be re-measured on Raspberry Pi before
-claiming target-device latency improvement.
-```
+Rounding the parameters preserved detection quality on this sample. The reported
+6-byte state estimate assumes int8 parameters, but the stored values exceed that
+range. See the [quantization note](inference_quantization.md) for the actual values.
+Timing must also be re-measured on Raspberry Pi before claiming a device-speed benefit.
 
 ## v3 Fixed 1 Hz vs Adaptive Sampling
 
